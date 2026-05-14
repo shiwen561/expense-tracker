@@ -5,7 +5,9 @@ import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
+import com.google.android.gms.tasks.Tasks;
 import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.text.Text;
 import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.TextRecognizer;
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions;
@@ -15,6 +17,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -95,9 +98,6 @@ public class BillNotificationService extends NotificationListenerService {
             Bitmap pic = extras.getParcelable(Notification.EXTRA_PICTURE);
             if (pic != null) bitmaps.add(pic);
 
-            Bitmap bigPic = extras.getParcelable(Notification.EXTRA_BIG_PICTURE);
-            if (bigPic != null) bitmaps.add(bigPic);
-
             Bitmap largeIcon = extras.getParcelable(Notification.EXTRA_LARGE_ICON);
             if (largeIcon != null) bitmaps.add(largeIcon);
         }
@@ -160,7 +160,8 @@ public class BillNotificationService extends NotificationListenerService {
 
             InputImage image = InputImage.fromBitmap(scaled, 0);
             try {
-                String text = recognizer.process(image).getText();
+                Text ocrResult = Tasks.await(recognizer.process(image), 10, TimeUnit.SECONDS);
+                String text = ocrResult.getText();
                 if (text != null && !text.trim().isEmpty()) {
                     result.append(text.trim()).append(" ");
                 }
