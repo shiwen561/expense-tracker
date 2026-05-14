@@ -28,5 +28,6 @@ android {
 }
 
 dependencies {
-    // 无需额外依赖，纯 WebView + 系统 API
+    // Google ML Kit 中文 OCR（离线识别通知中的金额图片）
+    implementation 'com.google.mlkit:text-recognition-chinese:16.0.1'
 }
