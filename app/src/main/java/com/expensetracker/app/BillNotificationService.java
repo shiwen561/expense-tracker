@@ -57,7 +57,9 @@ public class BillNotificationService extends NotificationListenerService {
 
         // 记录到调试日志
         String appName = ALIPAY_PKG.equals(pkg) ? "支付宝" : "微信";
-        String matched = isPaymentNotification(fullText) ? "✓匹配" : "✗未匹配";
+        boolean hasAmount = containsAmount(fullText);
+        boolean hasKeyword = isPaymentNotification(fullText);
+        String matched = hasAmount ? "💰已入队" : (hasKeyword ? "✓关键词" : "✗已跳过");
         String logEntry = "[" + timeStr + "] " + appName + " " + matched + ": " +
                           fullText.substring(0, Math.min(80, fullText.length()));
         synchronized (debugLog) {
@@ -65,8 +67,9 @@ public class BillNotificationService extends NotificationListenerService {
             if (debugLog.size() > MAX_DEBUG) debugLog.remove(0);
         }
 
-        // 支付通知入队
-        if (isPaymentNotification(fullText)) {
+        // 去掉关键词过滤，全部入队，由 JS 侧做智能判断
+        // 只要通知文字中包含数字金额或货币符号才入库，避免聊天消息误触发
+        if (containsAmount(fullText)) {
             synchronized (pendingList) {
                 pendingList.add(new PendingNotification(fullText, channel, timestamp));
                 if (pendingList.size() > MAX_PENDING) pendingList.remove(0);
@@ -82,6 +85,14 @@ public class BillNotificationService extends NotificationListenerService {
             if (text.contains(kw)) return true;
         }
         return false;
+    }
+
+    /** 检查文字中是否包含金额（数字 + 元/¥/$ 等） */
+    private boolean containsAmount(String text) {
+        // 匹配：数字+元、¥数字、￥数字、数字.数字
+        return text.matches(".*\\d+\\.?\\d*\\s*[元¥￥].*") ||
+               text.matches(".*[¥￥]\\s*\\d+.*") ||
+               text.matches(".*\\d+\\.\\d{2}.*");  // 12.34 格式
     }
 
     // ==================== 静态方法 ====================
