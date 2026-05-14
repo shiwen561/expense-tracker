@@ -3,7 +3,7 @@ name: Build APK
 on:
   push:
     branches: [main, master]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
@@ -21,19 +21,14 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
-
-      - name: Generate Gradle Wrapper
-        run: |
-          cd android-app
-          gradle wrapper --gradle-version 8.4
+        with:
+          gradle-version: '8.4'
 
       - name: Build debug APK
-        run: |
-          cd android-app
-          ./gradlew assembleDebug
+        run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
