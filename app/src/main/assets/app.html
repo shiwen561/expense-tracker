@@ -2579,19 +2579,61 @@ function onServiceStatusChanged(enabled) {
 // --- 每 5 秒轮询 ---
 setInterval(_autoSync, 5000);
 
-// --- APP 内：浮动测试按钮 ---
-function _addTestButton() {
+// --- APP 内：浮动按钮组 ---
+function _addAppButtons() {
   if (!_isInApp()) return;
-  let btn = document.createElement("div");
-  btn.id = "_testNotifyBtn";
-  btn.textContent = "🧪";
-  btn.style.cssText = "position:fixed;bottom:160px;right:16px;width:44px;height:44px;background:#5BAA8E;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,0.2);cursor:pointer;";
-  btn.title = "模拟通知测试";
-  btn.onclick = () => {
+
+  // 测试按钮
+  let btnTest = document.createElement("div");
+  btnTest.textContent = "🧪";
+  btnTest.style.cssText = "position:fixed;bottom:160px;right:16px;width:44px;height:44px;background:#5BAA8E;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,0.2);";
+  btnTest.onclick = () => {
     try { AndroidBridge.simulateNotification(); } catch(e) {}
-    _toast("测试通知已生成，等待自动记账...");
+    _toast("测试通知已生成");
   };
-  document.body.appendChild(btn);
+  document.body.appendChild(btnTest);
+
+  // 调试按钮
+  let btnDebug = document.createElement("div");
+  btnDebug.textContent = "📋";
+  btnDebug.style.cssText = "position:fixed;bottom:220px;right:16px;width:44px;height:44px;background:#F0A04B;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,0.2);";
+  btnDebug.onclick = _showDebugPanel;
+  document.body.appendChild(btnDebug);
+}
+
+// --- 调试面板：显示捕获到的通知 ---
+function _showDebugPanel() {
+  let log = "[]";
+  try { log = AndroidBridge.getDebugLog(); } catch(e) {}
+
+  let entries;
+  try { entries = JSON.parse(log); } catch(e) { entries = []; }
+
+  let html = entries.length === 0
+    ? '<div style="color:#7F8C8D;text-align:center;padding:20px;">暂无捕获记录。<br><br>请下拉手机通知栏确认有微信/支付宝通知，<br>然后切换回APP再点📋刷新。</div>'
+    : entries.map(e => '<div style="font-size:12px;padding:6px 0;border-bottom:1px solid #eee;' + (e.indexOf('✗')>=0?'color:#E06C6C;':'color:#5BAA8E;') + '">' + e.replace(/</g,'&lt;') + '</div>').join('');
+
+  let overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;";
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:20px;margin:16px;max-width:400px;width:100%;max-height:80vh;display:flex;flex-direction:column;">' +
+    '<div style="font-size:16px;font-weight:700;color:#2C3E50;margin-bottom:4px;">通知捕获日志</div>' +
+    '<div style="font-size:12px;color:#7F8C8D;margin-bottom:12px;">绿色=匹配到关键词  红色=未匹配(但已收到)</div>' +
+    '<div style="flex:1;overflow-y:auto;max-height:50vh;">' + html + '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:12px;">' +
+      '<button id="_debugRefresh" style="flex:1;padding:10px;background:#5BAA8E;color:#fff;border:none;border-radius:8px;font-size:14px;">刷新</button>' +
+      '<button id="_debugClear" style="flex:1;padding:10px;background:#E06C6C;color:#fff;border:none;border-radius:8px;font-size:14px;">清空日志</button>' +
+      '<button id="_debugClose" style="flex:1;padding:10px;background:#E8EDEB;color:#2C3E50;border:none;border-radius:8px;font-size:14px;">关闭</button>' +
+    '</div></div>';
+  document.body.appendChild(overlay);
+
+  document.getElementById("_debugRefresh").onclick = () => { overlay.remove(); _showDebugPanel(); };
+  document.getElementById("_debugClear").onclick = () => {
+    try { AndroidBridge.clearDebugLog(); } catch(e) {}
+    overlay.remove();
+    _toast("调试日志已清空");
+  };
+  document.getElementById("_debugClose").onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
 
 // --- 页面加载后首次检查 ---
@@ -2601,7 +2643,7 @@ window.addEventListener("load", () => {
     if (_isInApp()) {
       _checkNotificationPermission();
       _showApiKeyPrompt();
-      _addTestButton();
+      _addAppButtons();
     }
   }, 3000);
 });

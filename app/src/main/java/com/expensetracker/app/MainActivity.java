@@ -182,8 +182,20 @@ public class MainActivity extends Activity {
         public void simulateNotification() {
             BillNotificationService.addTestNotification();
             runOnUiThread(() ->
-                Toast.makeText(MainActivity.this, "测试通知已生成，5秒内将自动记账", Toast.LENGTH_SHORT).show()
+                Toast.makeText(MainActivity.this, "测试通知已生成", Toast.LENGTH_SHORT).show()
             );
+        }
+
+        /** 返回调试日志：最近所有微信/支付宝通知（含未匹配的） */
+        @JavascriptInterface
+        public String getDebugLog() {
+            return BillNotificationService.getDebugLog();
+        }
+
+        /** 清空调试日志 */
+        @JavascriptInterface
+        public void clearDebugLog() {
+            BillNotificationService.clearDebugLog();
         }
     }
 }
