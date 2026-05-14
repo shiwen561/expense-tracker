@@ -2579,6 +2579,21 @@ function onServiceStatusChanged(enabled) {
 // --- 每 5 秒轮询 ---
 setInterval(_autoSync, 5000);
 
+// --- APP 内：浮动测试按钮 ---
+function _addTestButton() {
+  if (!_isInApp()) return;
+  let btn = document.createElement("div");
+  btn.id = "_testNotifyBtn";
+  btn.textContent = "🧪";
+  btn.style.cssText = "position:fixed;bottom:160px;right:16px;width:44px;height:44px;background:#5BAA8E;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,0.2);cursor:pointer;";
+  btn.title = "模拟通知测试";
+  btn.onclick = () => {
+    try { AndroidBridge.simulateNotification(); } catch(e) {}
+    _toast("测试通知已生成，等待自动记账...");
+  };
+  document.body.appendChild(btn);
+}
+
 // --- 页面加载后首次检查 ---
 window.addEventListener("load", () => {
   setTimeout(() => {
@@ -2586,6 +2601,7 @@ window.addEventListener("load", () => {
     if (_isInApp()) {
       _checkNotificationPermission();
       _showApiKeyPrompt();
+      _addTestButton();
     }
   }, 3000);
 });

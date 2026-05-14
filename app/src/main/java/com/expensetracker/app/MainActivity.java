@@ -1,6 +1,8 @@
 package com.expensetracker.app;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.ClipData;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -10,6 +12,8 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -19,6 +23,10 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private boolean isServiceEnabled = false;
+
+    // 文件选择器回调（用于 HTML 中的 <input type="file"> 导入功能）
+    private ValueCallback<Uri[]> filePathCallback;
+    private static final int FILE_CHOOSER_REQUEST = 1001;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,13 +51,14 @@ public class MainActivity extends Activity {
         setupWebView();
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
     private void setupWebView() {
         webView = findViewById(R.id.webview);
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);       // IndexedDB 需要的
-        settings.setDatabaseEnabled(true);          // 同上
+        settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
         settings.setUseWideViewPort(true);
@@ -60,21 +69,60 @@ public class MainActivity extends Activity {
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
-        // 通过桥接对象让 JS 可以调用 Java 方法
+        // JS 桥接
         webView.addJavascriptInterface(new AppBridge(), "AndroidBridge");
 
-        // 在 WebView 内打开链接，不跳系统浏览器
+        // WebViewClient：在 APP 内打开链接
         webView.setWebViewClient(new WebViewClient());
 
+        // WebChromeClient：处理文件选择器（导入 CSV/Excel 必须）
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView webView,
+                    ValueCallback<Uri[]> callback, FileChooserParams params) {
+                if (filePathCallback != null) {
+                    filePathCallback.onReceiveValue(null);
+                }
+                filePathCallback = callback;
+
+                Intent intent = params.createIntent();
+                try {
+                    startActivityForResult(intent, FILE_CHOOSER_REQUEST);
+                } catch (Exception e) {
+                    filePathCallback = null;
+                    Toast.makeText(MainActivity.this, "无法打开文件选择器", Toast.LENGTH_SHORT).show();
+                    return false;
+                }
+                return true;
+            }
+        });
+
         webView.loadUrl("file:///android_asset/app.html");
+    }
+
+    // 处理文件选择器返回结果
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == FILE_CHOOSER_REQUEST) {
+            if (filePathCallback == null) return;
+
+            Uri[] results = null;
+            if (resultCode == RESULT_OK && data != null) {
+                Uri uri = data.getData();
+                if (uri != null) {
+                    results = new Uri[]{uri};
+                }
+            }
+            filePathCallback.onReceiveValue(results);
+            filePathCallback = null;
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // 每次回到页面时检查通知监听权限是否已开启
         isServiceEnabled = isNotificationServiceEnabled();
-        // 通知 WebView 权限状态变化
         if (webView != null) {
             webView.evaluateJavascript(
                 "if(typeof onServiceStatusChanged==='function')onServiceStatusChanged(" +
@@ -96,42 +144,45 @@ public class MainActivity extends Activity {
 
     public class AppBridge {
 
-        /** JS 调用：获取所有待处理的原始通知 */
         @JavascriptInterface
         public String getPendingNotifications() {
             return BillNotificationService.getPendingNotificationsJson();
         }
 
-        /** JS 调用：确认已导入，从队列中移除 */
         @JavascriptInterface
         public void confirmImported(String idsJson) {
             BillNotificationService.removeImported(idsJson);
         }
 
-        /** JS 调用：测试桥接是否可用 */
         @JavascriptInterface
         public String ping() {
             return "ok";
         }
 
-        /** JS 调用：打开系统通知监听权限设置 */
         @JavascriptInterface
         public void openNotificationSettings() {
             Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
             startActivity(intent);
         }
 
-        /** JS 调用：检查通知监听权限 */
         @JavascriptInterface
         public boolean isNotificationEnabled() {
             return isServiceEnabled;
         }
 
-        /** JS 调用：显示 Toast 消息 */
         @JavascriptInterface
         public void showToast(String message) {
             runOnUiThread(() ->
                 Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show()
+            );
+        }
+
+        /** 模拟一条测试通知，验证整个自动记账链路 */
+        @JavascriptInterface
+        public void simulateNotification() {
+            BillNotificationService.addTestNotification();
+            runOnUiThread(() ->
+                Toast.makeText(MainActivity.this, "测试通知已生成，5秒内将自动记账", Toast.LENGTH_SHORT).show()
             );
         }
     }
