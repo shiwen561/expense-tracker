@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">记账本</string>
     <string name="service_name">记账通知监听服务</string>
+    <string name="accessibility_service_description">记账本无障碍服务，用于读取微信和支付宝支付通知中的金额信息。</string>
 </resources>

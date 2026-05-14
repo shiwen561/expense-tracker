@@ -184,6 +184,23 @@ public class BillNotificationService extends NotificationListenerService {
         }
     }
 
+    /** 供 BillAccessibilityService 调用：直接从无障碍服务写入通知文字 */
+    public static void addFromAccessibility(String fullText, String channel, long timestamp) {
+        synchronized (pendingList) {
+            pendingList.add(new PendingNotification(fullText, channel, timestamp));
+            if (pendingList.size() > MAX_PENDING) pendingList.remove(0);
+        }
+        // 同时记录调试日志
+        String timeStr = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date(timestamp));
+        String appName = "alipay".equals(channel) ? "支付宝" : "微信";
+        String logEntry = "[" + timeStr + "] " + appName + " ♿无障碍: " +
+                          fullText.substring(0, Math.min(100, fullText.length()));
+        synchronized (debugLog) {
+            debugLog.add(logEntry);
+            if (debugLog.size() > MAX_DEBUG) debugLog.remove(0);
+        }
+    }
+
     // ==================== 静态方法 ====================
 
     public static String getPendingNotificationsJson() {

@@ -2547,6 +2547,29 @@ function _showApiKeyPrompt() {
   };
 }
 
+// --- APP 内：无障碍服务引导 ---
+function _checkAccessibilityPermission() {
+  if (!_isInApp()) return;
+  try {
+    if (!AndroidBridge.isAccessibilityEnabled()) {
+      let overlay = document.createElement("div");
+      overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;";
+      overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;margin:24px;max-width:360px;width:100%;text-align:center;">' +
+        '<div style="font-size:18px;font-weight:700;color:#2C3E50;margin-bottom:8px;">开启无障碍服务</div>' +
+        '<div style="font-size:13px;color:#7F8C8D;margin-bottom:16px;">为读取微信/支付宝通知中的<b>隐藏金额</b>（通知栏看不到的数字），需要开启无障碍服务。</div>' +
+        '<button id="_a11yOpen" style="width:100%;padding:12px;background:#F0A04B;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;margin-bottom:8px;">去开启</button>' +
+        '<button id="_a11ySkip" style="width:100%;padding:10px;background:transparent;color:#7F8C8D;border:none;font-size:13px;">稍后再说</button>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      document.getElementById("_a11yOpen").onclick = () => {
+        AndroidBridge.openAccessibilitySettings();
+        overlay.remove();
+      };
+      document.getElementById("_a11ySkip").onclick = () => overlay.remove();
+    }
+  } catch (_) {}
+}
+
 // --- APP 内：通知权限引导 ---
 function _checkNotificationPermission() {
   if (!_isInApp()) return;
@@ -2641,6 +2664,7 @@ window.addEventListener("load", () => {
   setTimeout(() => {
     _autoSync();
     if (_isInApp()) {
+      _checkAccessibilityPermission();
       _checkNotificationPermission();
       _showApiKeyPrompt();
       _addAppButtons();

@@ -186,6 +186,28 @@ public class MainActivity extends Activity {
             );
         }
 
+        /** 打开无障碍服务设置 */
+        @JavascriptInterface
+        public void openAccessibilitySettings() {
+            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            startActivity(intent);
+        }
+
+        /** 检查无障碍服务是否已开启 */
+        @JavascriptInterface
+        public boolean isAccessibilityEnabled() {
+            String service = getPackageName() + "/" + BillAccessibilityService.class.getName();
+            try {
+                String enabledServices = Settings.Secure.getString(
+                    getContentResolver(),
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                );
+                return enabledServices != null && enabledServices.contains(service);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
         /** 返回调试日志：最近所有微信/支付宝通知（含未匹配的） */
         @JavascriptInterface
         public String getDebugLog() {
