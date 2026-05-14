@@ -18,15 +18,6 @@ public class BillNotificationService extends NotificationListenerService {
     private static final String ALIPAY_PKG = "com.eg.android.AlipayGphone";
     private static final String WECHAT_PKG = "com.tencent.mm";
 
-    // 支付关键词 —— 先在原生层初筛，但同时也记录未匹配的到调试列表
-    private static final String[] PAY_KEYWORDS = {
-        "支出", "收入", "消费", "付款", "收款", "转账",
-        "扣款", "余额", "缴费", "支付", "退款", "红包",
-        "扫码", "刷卡", "网上支付", "快捷支付", "零钱",
-        "花呗", "借呗", "余额宝", "零钱通", "到账", "入账",
-        "提现", "充值", "订单"
-    };
-
     // 支付通知队列
     private static final List<PendingNotification> pendingList = new ArrayList<>();
     // 调试队列：记录最近所有通知（含未匹配的）
@@ -42,13 +33,52 @@ public class BillNotificationService extends NotificationListenerService {
         Notification n = sbn.getNotification();
         if (n == null) return;
 
+        // 尽可能提取通知中所有文字信息（不少 App 把金额藏在扩展字段里）
         Bundle extras = n.extras;
-        String title = extras != null ? extras.getString(Notification.EXTRA_TITLE, "") : "";
-        String content = extras != null ? extras.getString(Notification.EXTRA_TEXT, "") : "";
-        if (title == null) title = "";
-        if (content == null) content = "";
+        StringBuilder sb = new StringBuilder();
 
-        String fullText = (title + " " + content).trim();
+        if (extras != null) {
+            // 标准字段
+            String title = extras.getString(Notification.EXTRA_TITLE, "");
+            String text = extras.getString(Notification.EXTRA_TEXT, "");
+            String subText = extras.getString(Notification.EXTRA_SUB_TEXT, "");
+            String bigText = extras.getString(Notification.EXTRA_BIG_TEXT, "");
+            String summary = extras.getString(Notification.EXTRA_SUMMARY_TEXT, "");
+            String info = extras.getString(Notification.EXTRA_INFO_TEXT, "");
+
+            if (title != null && !title.isEmpty()) sb.append(title).append(" ");
+            if (text != null && !text.isEmpty()) sb.append(text).append(" ");
+            if (subText != null && !subText.isEmpty()) sb.append(subText).append(" ");
+            if (bigText != null && !bigText.isEmpty()) sb.append(bigText).append(" ");
+            if (summary != null && !summary.isEmpty()) sb.append(summary).append(" ");
+            if (info != null && !info.isEmpty()) sb.append(info).append(" ");
+
+            // 兜底：遍历所有 extras 字段，抓到标准字段之外的内容
+            for (String key : extras.keySet()) {
+                if (key.equals(Notification.EXTRA_TITLE) ||
+                    key.equals(Notification.EXTRA_TEXT) ||
+                    key.equals(Notification.EXTRA_SUB_TEXT) ||
+                    key.equals(Notification.EXTRA_BIG_TEXT) ||
+                    key.equals(Notification.EXTRA_SUMMARY_TEXT) ||
+                    key.equals(Notification.EXTRA_INFO_TEXT)) continue;
+
+                Object val = extras.get(key);
+                if (val instanceof String) {
+                    String s = (String) val;
+                    if (!s.isEmpty()) sb.append(s).append(" ");
+                } else if (val instanceof CharSequence) {
+                    String s = val.toString();
+                    if (!s.isEmpty()) sb.append(s).append(" ");
+                }
+            }
+        }
+
+        // tickerText（老版本 Android 的通知滚动文字，部分 App 仍在使用）
+        if (n.tickerText != null) {
+            sb.append(n.tickerText.toString()).append(" ");
+        }
+
+        String fullText = sb.toString().trim();
         if (fullText.isEmpty()) return;
 
         String channel = ALIPAY_PKG.equals(pkg) ? "alipay" : "wechat";
@@ -75,21 +105,6 @@ public class BillNotificationService extends NotificationListenerService {
 
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {}
-
-    private boolean isPaymentNotification(String text) {
-        for (String kw : PAY_KEYWORDS) {
-            if (text.contains(kw)) return true;
-        }
-        return false;
-    }
-
-    /** 检查文字中是否包含金额（数字 + 元/¥/$ 等） */
-    private boolean containsAmount(String text) {
-        // 匹配：数字+元、¥数字、￥数字、数字.数字
-        return text.matches(".*\\d+\\.?\\d*\\s*[元¥￥].*") ||
-               text.matches(".*[¥￥]\\s*\\d+.*") ||
-               text.matches(".*\\d+\\.\\d{2}.*");  // 12.34 格式
-    }
 
     // ==================== 静态方法 ====================
 
