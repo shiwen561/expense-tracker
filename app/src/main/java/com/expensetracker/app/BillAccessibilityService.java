@@ -4,6 +4,8 @@ import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
 import android.graphics.Path;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import java.util.regex.Matcher;
@@ -32,6 +34,8 @@ public class BillAccessibilityService extends AccessibilityService {
     // 金额正则
     private static final Pattern AMOUNT_PATTERN = Pattern.compile(
         "[¥￥]\\s*(\\d+(?:\\.\\d{1,2})?)|(\\d+(?:\\.\\d{1,2})?)\\s*[元塊]");
+
+    private Handler mainHandler = new Handler(Looper.getMainLooper());
 
     // 状态机
     private boolean isProcessing = false;
@@ -111,7 +115,7 @@ public class BillAccessibilityService extends AccessibilityService {
         android.util.Log.d("BillA11y", "开始自动提取金额，渠道=" + targetChannel);
 
         // 延迟 500ms 等通知栏稳定，然后打开通知栏
-        getMainHandler().postDelayed(() -> {
+        mainHandler.postDelayed(() -> {
             if (!isProcessing) return;
             openNotificationPanel();
         }, 500);
@@ -126,7 +130,7 @@ public class BillAccessibilityService extends AccessibilityService {
         }
 
         // 等通知栏展开后找目标通知
-        getMainHandler().postDelayed(() -> {
+        mainHandler.postDelayed(() -> {
             if (!isProcessing) return;
             findAndClickNotification();
         }, 800);
@@ -148,7 +152,7 @@ public class BillAccessibilityService extends AccessibilityService {
                 android.util.Log.d("BillA11y", "已点击通知，等待详情页...");
 
                 // 关闭通知栏
-                getMainHandler().postDelayed(() -> {
+                mainHandler.postDelayed(() -> {
                     collapseNotificationPanel();
                 }, 300);
 
@@ -156,7 +160,7 @@ public class BillAccessibilityService extends AccessibilityService {
                 // 通知栏里找不到，可能已被划掉，回退到扫描当前屏幕
                 android.util.Log.d("BillA11y", "通知栏中未找到目标通知，扫描当前屏幕");
                 collapseNotificationPanel();
-                getMainHandler().postDelayed(() -> {
+                mainHandler.postDelayed(() -> {
                     if (!isProcessing) return;
                     scanAndExtract(targetChannel);
                 }, 500);
@@ -256,13 +260,13 @@ public class BillAccessibilityService extends AccessibilityService {
     private void handleWindowEvent(String pkg) {
         if (ALIPAY_PKG.equals(pkg) || WECHAT_PKG.equals(pkg)) {
             // 微信/支付宝页面出现，等它加载完再扫描
-            getMainHandler().removeCallbacksAndMessages(null);
-            getMainHandler().postDelayed(() -> {
+            mainHandler.removeCallbacksAndMessages(null);
+            mainHandler.postDelayed(() -> {
                 if (!isProcessing) return;
                 boolean found = scanAndExtract(targetChannel);
                 if (found) {
                     // 提取成功，按返回键退出
-                    getMainHandler().postDelayed(() -> {
+                    mainHandler.postDelayed(() -> {
                         performGlobalAction(GLOBAL_ACTION_BACK);
                         finish("提取成功");
                     }, 500);
