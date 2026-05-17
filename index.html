@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>记账本</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+  <!-- ===== 首页：数据看板 ===== -->
+  <section id="page-dashboard" class="page active">
+    <!-- 顶部时间维度切换 -->
+    <div class="period-bar">
+      <button class="period-btn active" data-period="month">月</button>
+      <button class="period-btn" data-period="week">周</button>
+      <button class="period-btn" data-period="year">年</button>
+      <button class="period-btn" data-period="day">日</button>
+    </div>
+
+    <!-- 三栏核心数字 -->
+    <div class="summary-cards">
+      <div class="summary-card income-card">
+        <div class="summary-label">收入</div>
+        <div class="summary-value" id="total-income">¥0.00</div>
+      </div>
+      <div class="summary-card expense-card">
+        <div class="summary-label">支出</div>
+        <div class="summary-value" id="total-expense">¥0.00</div>
+      </div>
+      <div class="summary-card balance-card">
+        <div class="summary-label">结余</div>
+        <div class="summary-value" id="total-balance">¥0.00</div>
+      </div>
+    </div>
+
+    <!-- 月度预算进度条 -->
+    <div class="budget-bar" id="budget-section">
+      <div class="budget-header">
+        <span class="budget-label">月度预算</span>
+        <span class="budget-amount" id="budget-text">未设置</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="budget-progress" style="width:0%"></div>
+      </div>
+      <button class="btn-budget-set" id="btn-set-budget">设置预算</button>
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="charts-area">
+      <div class="chart-box">
+        <h4 class="chart-title">支出分类占比</h4>
+        <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h4 class="chart-title">收支趋势</h4>
+        <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 记账页面 ===== -->
+  <section id="page-add" class="page">
+    <form id="bill-form" autocomplete="off">
+      <div class="form-group">
+        <label>收支类型</label>
+        <div class="type-toggle">
+          <button type="button" class="type-btn expense-btn active" data-type="expense">支出</button>
+          <button type="button" class="type-btn income-btn" data-type="income">收入</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="amount">金额</label>
+        <div class="amount-input-wrap">
+          <span class="currency-symbol">¥</span>
+          <input type="number" id="amount" placeholder="0.00" step="0.01" min="0.01" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="date">日期</label>
+        <input type="date" id="date" required>
+      </div>
+
+      <div class="form-group">
+        <label>支付渠道</label>
+        <div class="chip-group" id="channel-group">
+          <button type="button" class="chip active" data-value="alipay">支付宝</button>
+          <button type="button" class="chip" data-value="wechat">微信</button>
+          <button type="button" class="chip" data-value="unionpay">云闪付</button>
+          <button type="button" class="chip" data-value="other">其他</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>分类标签</label>
+        <div class="chip-group" id="category-group">
+          <button type="button" class="chip" data-value="餐饮">餐饮</button>
+          <button type="button" class="chip" data-value="交通">交通</button>
+          <button type="button" class="chip" data-value="购物">购物</button>
+          <button type="button" class="chip" data-value="工资">工资</button>
+          <button type="button" class="chip" data-value="娱乐">娱乐</button>
+          <button type="button" class="chip" data-value="居住">居住</button>
+          <button type="button" class="chip" data-value="数字服务">数字服务</button>
+          <button type="button" class="chip" data-value="医疗">医疗</button>
+          <button type="button" class="chip" data-value="人情往来">人情往来</button>
+          <button type="button" class="chip" data-value="其他">其他</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="note">备注（选填）</label>
+        <input type="text" id="note" placeholder="写点备注..." maxlength="50">
+      </div>
+
+      <input type="hidden" id="edit-id" value="">
+      <button type="submit" class="btn-primary" id="btn-submit">记一笔</button>
+      <button type="button" class="btn-cancel" id="btn-cancel-edit" style="display:none">取消编辑</button>
+    </form>
+  </section>
+
+  <!-- ===== 账单列表 ===== -->
+  <section id="page-bills" class="page">
+    <div class="bills-header">
+      <h3>历史账单</h3>
+      <div class="bills-header-right">
+        <button class="btn-import" id="btn-import">导入</button>
+        <span class="bills-count" id="bills-count">共 0 条</span>
+      </div>
+    </div>
+    <input type="file" id="import-file" accept=".csv,.xlsx" style="display:none">
+    <div class="bills-list" id="bills-list">
+      <div class="empty-state">暂无账单，去记一笔吧</div>
+    </div>
+  </section>
+
+  <!-- ===== 搜索页面 ===== -->
+  <section id="page-search" class="page">
+    <div class="search-bar">
+      <input type="text" id="search-keyword" placeholder="搜索备注或分类..." autocomplete="off">
+    </div>
+    <div class="search-filter">
+      <input type="number" id="search-min" placeholder="最低金额" step="0.01">
+      <span class="filter-sep">—</span>
+      <input type="number" id="search-max" placeholder="最高金额" step="0.01">
+      <button class="btn-search" id="btn-search">搜索</button>
+      <button class="btn-reset" id="btn-reset-search">重置</button>
+    </div>
+    <div class="bills-list" id="search-results">
+      <div class="empty-state">输入关键词或金额区间开始搜索</div>
+    </div>
+  </section>
+
+  <!-- ===== 底部 Tab 导航 ===== -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-page="dashboard">
+      <span class="nav-icon">📊</span>
+      <span class="nav-text">首页</span>
+    </button>
+    <button class="nav-btn" data-page="add">
+      <span class="nav-icon nav-icon-add">＋</span>
+      <span class="nav-text">记账</span>
+    </button>
+    <button class="nav-btn" data-page="bills">
+      <span class="nav-icon">📋</span>
+      <span class="nav-text">账单</span>
+    </button>
+    <button class="nav-btn" data-page="search">
+      <span class="nav-icon">🔍</span>
+      <span class="nav-text">搜索</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ===== 编辑弹窗（浮层） ===== -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="edit-modal">
+    <h4>编辑账单</h4>
+    <form id="edit-form" autocomplete="off">
+      <div class="form-group">
+        <label>收支类型</label>
+        <div class="type-toggle" id="edit-type-group">
+          <button type="button" class="type-btn expense-btn" data-type="expense">支出</button>
+          <button type="button" class="type-btn income-btn" data-type="income">收入</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="edit-amount">金额</label>
+        <div class="amount-input-wrap">
+          <span class="currency-symbol">¥</span>
+          <input type="number" id="edit-amount" placeholder="0.00" step="0.01" min="0.01" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="edit-date">日期</label>
+        <input type="date" id="edit-date" required>
+      </div>
+      <div class="form-group">
+        <label>支付渠道</label>
+        <div class="chip-group" id="edit-channel-group">
+          <button type="button" class="chip" data-value="alipay">支付宝</button>
+          <button type="button" class="chip" data-value="wechat">微信</button>
+          <button type="button" class="chip" data-value="unionpay">云闪付</button>
+          <button type="button" class="chip" data-value="other">其他</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>分类标签</label>
+        <div class="chip-group" id="edit-category-group">
+          <button type="button" class="chip" data-value="餐饮">餐饮</button>
+          <button type="button" class="chip" data-value="交通">交通</button>
+          <button type="button" class="chip" data-value="购物">购物</button>
+          <button type="button" class="chip" data-value="工资">工资</button>
+          <button type="button" class="chip" data-value="娱乐">娱乐</button>
+          <button type="button" class="chip" data-value="居住">居住</button>
+          <button type="button" class="chip" data-value="数字服务">数字服务</button>
+          <button type="button" class="chip" data-value="医疗">医疗</button>
+          <button type="button" class="chip" data-value="人情往来">人情往来</button>
+          <button type="button" class="chip" data-value="其他">其他</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="edit-note">备注（选填）</label>
+        <input type="text" id="edit-note" placeholder="写点备注..." maxlength="50">
+      </div>
+      <input type="hidden" id="edit-bill-id" value="">
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary">保存</button>
+        <button type="button" class="btn-cancel" id="btn-modal-cancel">取消</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ===== 导入预览弹窗 ===== -->
+  <div class="modal modal-import" id="import-modal">
+    <h4>导入账单预览</h4>
+    <div class="import-info" id="import-info"></div>
+    <div class="import-table-wrap">
+      <table class="import-table" id="import-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-primary" id="btn-import-confirm">确认导入</button>
+      <button type="button" class="btn-cancel" id="btn-import-cancel">取消</button>
+    </div>
+  </div>
+
+  <!-- ===== 预算设置弹窗 ===== -->
+  <div class="modal" id="budget-modal">
+    <h4>设置月度预算</h4>
+    <form id="budget-form" autocomplete="off">
+      <div class="form-group">
+        <label for="budget-limit">预算上限 (¥)</label>
+        <div class="amount-input-wrap">
+          <span class="currency-symbol">¥</span>
+          <input type="number" id="budget-limit" placeholder="0.00" step="0.01" min="0" required>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary">保存</button>
+        <button type="button" class="btn-cancel" id="btn-budget-cancel">取消</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="js/lib/chart.umd.min.js"></script>
+<script src="js/lib/xlsx.full.min.js"></script>
+<script src="js/db.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/bill.js"></script>
+<script src="js/search.js"></script>
+<script src="js/import.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
