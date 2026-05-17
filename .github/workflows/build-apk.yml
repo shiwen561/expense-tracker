@@ -5,6 +5,10 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+# 需要写权限来创建 Release
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,8 +31,18 @@ jobs:
       - name: Build debug APK
         run: cd android-app && gradle assembleDebug
 
-      - name: Upload APK
+      - name: Upload APK (ZIP, need unzip)
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
           path: android-app/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish APK to Release (direct download)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: "Nightly Build"
+          body: "最新的自动构建版本。点击下方 **app-debug.apk** 直接下载安装。"
+          files: android-app/app/build/outputs/apk/debug/app-debug.apk
+          prerelease: true
+          make_latest: true
