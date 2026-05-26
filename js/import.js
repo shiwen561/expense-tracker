@@ -2,20 +2,48 @@
 let parsedBills = [];
 
 function initImport() {
-  document.getElementById('btn-import').addEventListener('click', () => {
+  // 点击「导入」→ 打开弹窗展示教程（不直接弹出文件选择框）
+  document.getElementById('btn-import').addEventListener('click', openImportModal);
+  // 弹窗内「选择文件」→ 触发文件选择框
+  document.getElementById('btn-select-file').addEventListener('click', function () {
     document.getElementById('import-file').click();
   });
   document.getElementById('import-file').addEventListener('change', handleFileSelect);
   document.getElementById('btn-import-confirm').addEventListener('click', confirmImport);
   document.getElementById('btn-import-cancel').addEventListener('click', closeImportModal);
 
-  document.getElementById('modal-overlay').addEventListener('click', (e) => {
+  document.getElementById('modal-overlay').addEventListener('click', function (e) {
     if (e.target === document.getElementById('modal-overlay')) {
       if (document.getElementById('import-modal').style.display === 'block') {
         closeImportModal();
       }
     }
   });
+
+  // 导入教程折叠/展开
+  var guideToggle = document.getElementById('guide-toggle');
+  var guide = document.getElementById('import-guide');
+  if (guideToggle && guide) {
+    guideToggle.addEventListener('click', function () {
+      guide.classList.toggle('open');
+    });
+  }
+}
+
+function openImportModal() {
+  // 重置为初始状态：显示教程 + 选择按钮，隐藏数据预览
+  var guide = document.getElementById('import-guide');
+  if (guide) guide.classList.add('open');
+  document.getElementById('import-select-area').style.display = 'block';
+  document.getElementById('import-info').innerHTML = '';
+  document.querySelector('#import-table thead').innerHTML = '';
+  document.querySelector('#import-table tbody').innerHTML = '';
+  document.getElementById('import-table-wrap').style.display = 'none';
+  document.getElementById('import-actions').style.display = 'none';
+  document.getElementById('import-modal').style.display = 'block';
+  document.getElementById('edit-modal').style.display = 'none';
+  document.getElementById('budget-modal').style.display = 'none';
+  document.getElementById('modal-overlay').classList.add('show');
 }
 
 function handleFileSelect(e) {
@@ -336,6 +364,13 @@ function detectChannelFromFileName(name) {
 function showImportPreview(autoChannel) {
   if (autoChannel) parsedBills.forEach(b => { b.channel = autoChannel; });
 
+  // 切换到数据预览模式：折叠教程，隐藏选择区，显示表格和操作按钮
+  var guide = document.getElementById('import-guide');
+  if (guide) guide.classList.remove('open');
+  document.getElementById('import-select-area').style.display = 'none';
+  document.getElementById('import-table-wrap').style.display = 'block';
+  document.getElementById('import-actions').style.display = 'flex';
+
   document.getElementById('import-info').innerHTML =
     `识别到 <b>${parsedBills.length}</b> 条账单` +
     (autoChannel ? `，渠道: <b>${channelLabel(autoChannel)}</b>` : '');
@@ -397,10 +432,14 @@ function confirmImport() {
 
 function closeImportModal() {
   document.getElementById('modal-overlay').classList.remove('show');
+  document.getElementById('import-modal').style.display = 'none';
   parsedBills = [];
 }
 
 function showImportError(msg) {
+  document.getElementById('import-select-area').style.display = 'none';
+  document.getElementById('import-table-wrap').style.display = 'block';
+  document.getElementById('import-actions').style.display = 'flex';
   document.getElementById('import-info').innerHTML = '';
   document.querySelector('#import-table thead').innerHTML = '';
   document.querySelector('#import-table tbody').innerHTML = `<tr><td colspan="7" class="import-error">${msg}</td></tr>`;

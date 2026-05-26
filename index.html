@@ -11,25 +11,35 @@
 <div id="app">
   <!-- ===== 首页：数据看板 ===== -->
   <section id="page-dashboard" class="page active">
-    <!-- 顶部时间维度切换 -->
-    <div class="period-bar">
-      <button class="period-btn active" data-period="month">月</button>
-      <button class="period-btn" data-period="week">周</button>
-      <button class="period-btn" data-period="year">年</button>
-      <button class="period-btn" data-period="day">日</button>
+    <!-- 顶部时间维度切换 + 主题切换 -->
+    <div class="period-header">
+      <div class="period-bar">
+        <button class="period-btn active" data-period="month">月</button>
+        <button class="period-btn" data-period="week">周</button>
+        <button class="period-btn" data-period="year">年</button>
+        <button class="period-btn" data-period="day">日</button>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" title="切换深色模式">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
     </div>
 
     <!-- 三栏核心数字 -->
     <div class="summary-cards">
       <div class="summary-card income-card">
+        <div class="summary-icon">↑</div>
         <div class="summary-label">收入</div>
         <div class="summary-value" id="total-income">¥0.00</div>
       </div>
       <div class="summary-card expense-card">
+        <div class="summary-icon">↓</div>
         <div class="summary-label">支出</div>
         <div class="summary-value" id="total-expense">¥0.00</div>
       </div>
       <div class="summary-card balance-card">
+        <div class="summary-icon">=</div>
         <div class="summary-label">结余</div>
         <div class="summary-value" id="total-balance">¥0.00</div>
       </div>
@@ -58,10 +68,33 @@
         <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
       </div>
     </div>
+
+    <!-- AI 财务洞察 -->
+    <div class="ai-insights-section" id="ai-insights-section">
+      <div class="insights-header">
+        <h4 class="chart-title">AI 财务洞察</h4>
+        <button class="btn-insights-refresh" id="btn-insights-refresh">分析</button>
+      </div>
+      <div class="insights-content" id="insights-content">
+        <p class="insights-placeholder">点击"分析"获取 AI 消费建议</p>
+      </div>
+    </div>
   </section>
 
   <!-- ===== 记账页面 ===== -->
   <section id="page-add" class="page">
+    <!-- AI 智能录入 -->
+    <div class="ai-entry-section" id="ai-entry-section">
+      <div class="ai-input-wrap">
+        <textarea id="ai-raw-text" placeholder="粘贴支付通知或描述，如：在美团外卖花了35块..." rows="2"></textarea>
+        <button type="button" class="btn-ai-parse" id="btn-ai-parse">
+          <span class="ai-btn-text">AI<br>识别</span>
+          <span class="ai-spinner" style="display:none"></span>
+        </button>
+      </div>
+      <div class="ai-result-preview" id="ai-result-preview" style="display:none"></div>
+    </div>
+
     <form id="bill-form" autocomplete="off">
       <div class="form-group">
         <label>收支类型</label>
@@ -153,23 +186,91 @@
     </div>
   </section>
 
+  <!-- ===== 设置页 ===== -->
+  <section id="page-settings" class="page">
+    <div class="settings-section">
+      <h3>AI 设置</h3>
+      <div class="form-group">
+        <label for="api-key-input">DeepSeek API Key</label>
+        <input type="password" id="api-key-input" placeholder="sk-xxxxxxxxxxxxxxxx">
+        <p class="settings-hint">
+          前往 <a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a> 免费注册获取 Key，新用户赠送 500 万 token。
+        </p>
+        <button class="btn-primary" id="btn-save-api-key" style="margin-top:8px">保存</button>
+      </div>
+      <div class="settings-divider"></div>
+      <div class="form-group">
+        <label>通知自动记账</label>
+        <p class="settings-hint">
+          在手机端配合 AutoX.js 脚本使用，自动从支付通知提取账单。需在同一 WiFi 下手机运行脚本，并在脚本中配置电脑 IP。
+        </p>
+        <div class="sync-status-bar" id="sync-status-bar">
+          <span class="sync-dot offline" id="sync-dot"></span>
+          <span class="sync-status-text" id="sync-status-text">未启动</span>
+        </div>
+        <button class="btn-primary" id="btn-toggle-sync" style="margin-top:8px">开启通知同步</button>
+      </div>
+      <div class="settings-divider"></div>
+      <div class="form-group">
+        <label>外观</label>
+        <button class="btn-primary" id="btn-toggle-theme">切换深色 / 浅色模式</button>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== 底部 Tab 导航 ===== -->
   <nav class="bottom-nav">
     <button class="nav-btn active" data-page="dashboard">
-      <span class="nav-icon">📊</span>
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </span>
       <span class="nav-text">首页</span>
     </button>
-    <button class="nav-btn" data-page="add">
-      <span class="nav-icon nav-icon-add">＋</span>
-      <span class="nav-text">记账</span>
+    <button class="nav-btn nav-btn-add" data-page="add">
+      <span class="nav-icon nav-icon-add">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        记账
+      </span>
+      <span class="nav-text" style="visibility:hidden;height:0">记账</span>
     </button>
     <button class="nav-btn" data-page="bills">
-      <span class="nav-icon">📋</span>
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/>
+          <line x1="8" y1="12" x2="21" y2="12"/>
+          <line x1="8" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="3.01" y2="6"/>
+          <line x1="3" y1="12" x2="3.01" y2="12"/>
+          <line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+      </span>
       <span class="nav-text">账单</span>
     </button>
     <button class="nav-btn" data-page="search">
-      <span class="nav-icon">🔍</span>
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </span>
       <span class="nav-text">搜索</span>
+    </button>
+    <button class="nav-btn" data-page="settings">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </span>
+      <span class="nav-text">设置</span>
     </button>
   </nav>
 </div>
@@ -236,14 +337,50 @@
   <!-- ===== 导入预览弹窗 ===== -->
   <div class="modal modal-import" id="import-modal">
     <h4>导入账单预览</h4>
+
+    <!-- 导出教程 -->
+    <div class="import-guide open" id="import-guide">
+      <div class="guide-header" id="guide-toggle">
+        <span class="guide-title">如何从微信 / 支付宝导出账单？</span>
+        <span class="guide-arrow" id="guide-arrow">▼</span>
+      </div>
+      <div class="guide-body" id="guide-body">
+        <div class="guide-platform">
+          <div class="guide-platform-tag wechat">微信支付</div>
+          <ol class="guide-steps">
+            <li>打开微信 → <b>我</b> → <b>服务</b> → <b>钱包</b> → <b>账单</b></li>
+            <li>右上角 <b>常见问题</b> → <b>下载账单</b> → 选择 <b>用于个人对账</b></li>
+            <li>选择时间范围，填写邮箱，账单会发送到邮箱</li>
+            <li>下载邮件附件压缩包，解压得到 <b>CSV 文件</b>，在此导入</li>
+          </ol>
+        </div>
+        <div class="guide-platform">
+          <div class="guide-platform-tag alipay">支付宝</div>
+          <ol class="guide-steps">
+            <li>打开支付宝 → <b>我的</b> → <b>账单</b></li>
+            <li>右上角 <b>筛选</b> → 选择时间范围</li>
+            <li>点击 <b>更多</b> → <b>开具交易流水证明</b></li>
+            <li>选择 <b>用于个人对账</b>，填写邮箱</li>
+            <li>下载邮件附件，解压得到 <b>CSV/Excel 文件</b>，在此导入</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <!-- 选择文件区域（未选文件时显示） -->
+    <div class="import-select-area" id="import-select-area">
+      <p class="import-select-hint">按上方的教程导出账单后，选择文件导入</p>
+      <button type="button" class="btn-primary" id="btn-select-file">选择文件</button>
+    </div>
+
     <div class="import-info" id="import-info"></div>
-    <div class="import-table-wrap">
+    <div class="import-table-wrap" id="import-table-wrap" style="display:none">
       <table class="import-table" id="import-table">
         <thead></thead>
         <tbody></tbody>
       </table>
     </div>
-    <div class="modal-actions">
+    <div class="modal-actions" id="import-actions" style="display:none">
       <button type="button" class="btn-primary" id="btn-import-confirm">确认导入</button>
       <button type="button" class="btn-cancel" id="btn-import-cancel">取消</button>
     </div>
@@ -275,6 +412,8 @@
 <script src="js/bill.js"></script>
 <script src="js/search.js"></script>
 <script src="js/import.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/sync.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

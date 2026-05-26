@@ -36,6 +36,9 @@ function initBillForm() {
   // 提交
   form.addEventListener('submit', handleBillSubmit);
   document.getElementById('btn-cancel-edit').addEventListener('click', cancelEdit);
+
+  // AI 智能录入
+  initAIEntry();
 }
 
 function handleBillSubmit(e) {
@@ -250,6 +253,7 @@ function handleBudgetSubmit(e) {
 
 function closeAllModals() {
   document.getElementById('modal-overlay').classList.remove('show');
+  document.getElementById('import-modal').style.display = 'none';
 }
 
 // --- 账单列表渲染 ---
@@ -282,8 +286,10 @@ function renderBillList(bills, containerId, showActions = true) {
         <button class="bill-action-btn" data-action="delete" data-id="${b.id}" title="删除">🗑️</button>
       </div>` : '';
 
+    var borderClass = b.type === 'income' ? 'income-border' : 'expense-border';
+    if (b.pinned) borderClass = 'pinned';
     return `
-      <div class="bill-card ${b.pinned ? 'pinned' : ''}" data-id="${b.id}">
+      <div class="bill-card ${borderClass}" data-id="${b.id}">
         ${b.pinned ? '<span class="bill-pin-badge">📌 已置顶</span>' : ''}
         <div class="bill-icon ${typeClass}">${CAT_ICONS[b.category] || '📌'}</div>
         <div class="bill-info">
@@ -344,4 +350,88 @@ function handleDelete(id) {
     deleteBill(id).then(() => refreshAll());
   });
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+// --- AI 智能录入 ---
+function initAIEntry() {
+  var btnParse = document.getElementById('btn-ai-parse');
+  var rawText = document.getElementById('ai-raw-text');
+  var preview = document.getElementById('ai-result-preview');
+  if (!btnParse || !rawText || !preview) return;
+
+  btnParse.addEventListener('click', async function () {
+    var text = rawText.value.trim();
+    if (!text) { showToast('请先输入文本'); return; }
+
+    btnParse.disabled = true;
+    btnParse.querySelector('.ai-btn-text').style.display = 'none';
+    btnParse.querySelector('.ai-spinner').style.display = 'inline-block';
+
+    try {
+      var result = await parseBillText(text);
+      showAIPreview(result, preview);
+    } catch (e) {
+      showToast('识别失败: ' + e.message);
+    } finally {
+      btnParse.disabled = false;
+      btnParse.querySelector('.ai-btn-text').style.display = '';
+      btnParse.querySelector('.ai-spinner').style.display = 'none';
+    }
+  });
+}
+
+function showAIPreview(result, previewEl) {
+  if (!result.amount) {
+    showToast('未能识别金额，请手动填写');
+    return;
+  }
+  var typeLabel = result.type === 'income' ? '收入' : '支出';
+  previewEl.innerHTML =
+    '<div class="ai-preview-card">' +
+      '<div class="ai-preview-row"><span>类型</span><strong>' + typeLabel + '</strong></div>' +
+      '<div class="ai-preview-row"><span>金额</span><strong>¥' + result.amount.toFixed(2) + '</strong></div>' +
+      '<div class="ai-preview-row"><span>分类</span><strong>' + (result.category || '其他') + '</strong></div>' +
+      '<div class="ai-preview-row"><span>备注</span><strong>' + (result.note || '—') + '</strong></div>' +
+      '<div class="ai-preview-actions">' +
+        '<button class="btn-primary" id="btn-ai-confirm">确认记账</button>' +
+        '<button class="btn-cancel" id="btn-ai-cancel">取消</button>' +
+      '</div>' +
+    '</div>';
+  previewEl.style.display = 'block';
+
+  document.getElementById('btn-ai-confirm').addEventListener('click', function () {
+    fillFormFromAI(result);
+    previewEl.style.display = 'none';
+    document.getElementById('ai-raw-text').value = '';
+    showToast('已填充表单，检查后点击"记一笔"提交');
+  });
+
+  document.getElementById('btn-ai-cancel').addEventListener('click', function () {
+    previewEl.style.display = 'none';
+  });
+}
+
+function fillFormFromAI(result) {
+  document.getElementById('amount').value = result.amount;
+  document.getElementById('note').value = result.note || '';
+
+  // 设置类型
+  document.querySelectorAll('#bill-form .type-btn').forEach(function (b) { b.classList.remove('active'); });
+  var typeBtn = document.querySelector('#bill-form .type-btn[data-type="' + result.type + '"]');
+  if (typeBtn) typeBtn.classList.add('active');
+  selectedType = result.type;
+
+  // 设置分类
+  document.querySelectorAll('#category-group .chip').forEach(function (c) { c.classList.remove('active'); });
+  var catChip = document.querySelector('#category-group .chip[data-value="' + result.category + '"]');
+  if (catChip) {
+    catChip.classList.add('active');
+    selectedCategory = result.category;
+  } else {
+    var otherChip = document.querySelector('#category-group .chip[data-value="其他"]');
+    if (otherChip) otherChip.classList.add('active');
+    selectedCategory = '其他';
+  }
+
+  document.getElementById('bill-form').scrollIntoView({ behavior: 'smooth' });
 }

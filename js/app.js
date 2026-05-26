@@ -3,6 +3,9 @@ let currentPeriod = 'month';
 // --- 初始化 ---
 
 async function init() {
+  // 恢复主题（防闪烁）
+  initTheme();
+
   await openDB();
 
   // 底部导航
@@ -26,6 +29,9 @@ async function init() {
   initEditModal();
   initSearch();
   initImport();
+  initSettings();
+  initAIInsights();
+  initSyncUI();
 
   // 首次刷新
   refreshAll();
@@ -34,21 +40,33 @@ async function init() {
 // --- 页面切换 ---
 
 function switchTab(pageName) {
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-
-  const pageMap = {
+  var currentActive = document.querySelector('.page.active');
+  var pageMap = {
     dashboard: 'page-dashboard',
     add: 'page-add',
     bills: 'page-bills',
-    search: 'page-search'
+    search: 'page-search',
+    settings: 'page-settings'
   };
 
-  const pageId = pageMap[pageName];
-  document.getElementById(pageId).classList.add('active');
+  var pageId = pageMap[pageName];
+  var targetPage = document.getElementById(pageId);
+  if (!targetPage || targetPage === currentActive) return;
 
-  const navBtn = document.querySelector(`.nav-btn[data-page="${pageName}"]`);
+  // 更新导航按钮
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  var navBtn = document.querySelector('.nav-btn[data-page="' + pageName + '"]');
   if (navBtn) navBtn.classList.add('active');
+
+  // 离开当前页
+  if (currentActive) {
+    currentActive.classList.remove('active');
+  }
+
+  // 进入目标页（触发 CSS 过渡）
+  targetPage.style.display = 'block';
+  targetPage.offsetHeight; // 强制回流
+  targetPage.classList.add('active');
 
   // 切到账单页时刷新列表
   if (pageName === 'bills') refreshBillList();

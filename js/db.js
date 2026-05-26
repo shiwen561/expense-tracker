@@ -4,16 +4,16 @@ let db = null;
 
 // ===== 分类注册表（唯一数据源） =====
 const CATEGORY_META = [
-  { value: '餐饮',   icon: '🍽️', color: '#5BAA8E' },
-  { value: '交通',   icon: '🚗', color: '#A8D8CA' },
-  { value: '购物',   icon: '🛒', color: '#C5E4F0' },
-  { value: '工资',   icon: '💰', color: '#F0A04B' },
-  { value: '娱乐',   icon: '🎮', color: '#E06C6C' },
-  { value: '居住',   icon: '🏠', color: '#7FB5B5' },
-  { value: '数字服务', icon: '💻', color: '#9B59B6' },
-  { value: '医疗',   icon: '💊', color: '#C4A882' },
-  { value: '人情往来', icon: '🎁', color: '#E67E22' },
-  { value: '其他',   icon: '📌', color: '#B0BEC5' },
+  { value: '餐饮',   icon: '🍽️', color: '#FF6B6B' },
+  { value: '交通',   icon: '🚗', color: '#4ECDC4' },
+  { value: '购物',   icon: '🛒', color: '#FFD93D' },
+  { value: '工资',   icon: '💰', color: '#6BCB77' },
+  { value: '娱乐',   icon: '🎮', color: '#9B59B6' },
+  { value: '居住',   icon: '🏠', color: '#E67E22' },
+  { value: '数字服务', icon: '💻', color: '#3498DB' },
+  { value: '医疗',   icon: '💊', color: '#E74C3C' },
+  { value: '人情往来', icon: '🎁', color: '#F39C12' },
+  { value: '其他',   icon: '📌', color: '#95A5A6' },
 ];
 
 const CAT_ICONS = Object.fromEntries(CATEGORY_META.map(c => [c.value, c.icon]));
