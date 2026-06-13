@@ -61,7 +61,9 @@
     <div class="charts-area">
       <div class="chart-box">
         <h4 class="chart-title">支出分类占比</h4>
-        <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+        <div class="category-bubble-chart" id="categoryBubbleChart">
+          <div class="bubble-empty">暂无支出数据</div>
+        </div>
       </div>
       <div class="chart-box">
         <h4 class="chart-title">收支趋势</h4>
@@ -202,13 +204,18 @@
       <div class="form-group">
         <label>通知自动记账</label>
         <p class="settings-hint">
-          在手机端配合 AutoX.js 脚本使用，自动从支付通知提取账单。需在同一 WiFi 下手机运行脚本，并在脚本中配置电脑 IP。
+          Android 版可读取微信 / 支付宝通知并自动记账。首次使用请开启通知使用权；如金额隐藏，可再开启无障碍服务辅助识别。
         </p>
         <div class="sync-status-bar" id="sync-status-bar">
           <span class="sync-dot offline" id="sync-dot"></span>
           <span class="sync-status-text" id="sync-status-text">未启动</span>
         </div>
         <button class="btn-primary" id="btn-toggle-sync" style="margin-top:8px">开启通知同步</button>
+        <div class="sync-native-actions" id="sync-native-actions">
+          <button type="button" class="btn-secondary" id="btn-open-notification-settings">通知权限</button>
+          <button type="button" class="btn-secondary" id="btn-open-accessibility-settings">无障碍</button>
+          <button type="button" class="btn-secondary" id="btn-simulate-notification">测试通知</button>
+        </div>
       </div>
       <div class="settings-divider"></div>
       <div class="form-group">
@@ -222,52 +229,61 @@
   <nav class="bottom-nav">
     <button class="nav-btn active" data-page="dashboard">
       <span class="nav-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="1"/>
-          <rect x="14" y="3" width="7" height="7" rx="1"/>
-          <rect x="3" y="14" width="7" height="7" rx="1"/>
-          <rect x="14" y="14" width="7" height="7" rx="1"/>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="6" height="6" rx="1.4"/>
+          <rect x="14" y="4" width="6" height="6" rx="1.4"/>
+          <rect x="4" y="14" width="6" height="6" rx="1.4"/>
+          <rect x="14" y="14" width="6" height="6" rx="1.4"/>
         </svg>
       </span>
       <span class="nav-text">首页</span>
     </button>
     <button class="nav-btn nav-btn-add" data-page="add">
       <span class="nav-icon nav-icon-add">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <line x1="12" y1="5" x2="12" y2="19"/>
-          <line x1="5" y1="12" x2="19" y2="12"/>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M7 4.5h8.6L19 8v10.5A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-12A2 2 0 0 1 7 4.5z"/>
+          <path d="M15.5 4.8V8h3.1"/>
+          <path d="M8.4 10.4h6.2"/>
+          <path d="M8.4 13.6h3.4"/>
+          <path d="M13.2 17.2l3.2-3.2 1.6 1.6-3.2 3.2-2 .4.4-2z"/>
         </svg>
         记账
       </span>
-      <span class="nav-text" style="visibility:hidden;height:0">记账</span>
+      <span class="nav-text nav-text-placeholder">记账</span>
     </button>
     <button class="nav-btn" data-page="bills">
       <span class="nav-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="8" y1="6" x2="21" y2="6"/>
-          <line x1="8" y1="12" x2="21" y2="12"/>
-          <line x1="8" y1="18" x2="21" y2="18"/>
-          <line x1="3" y1="6" x2="3.01" y2="6"/>
-          <line x1="3" y1="12" x2="3.01" y2="12"/>
-          <line x1="3" y1="18" x2="3.01" y2="18"/>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 7h12"/>
+          <path d="M6 12h12"/>
+          <path d="M6 17h12"/>
+          <circle cx="4" cy="7" r=".7"/>
+          <circle cx="4" cy="12" r=".7"/>
+          <circle cx="4" cy="17" r=".7"/>
         </svg>
       </span>
       <span class="nav-text">账单</span>
     </button>
     <button class="nav-btn" data-page="search">
       <span class="nav-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="10.8" cy="10.8" r="6.6"/>
+          <path d="M16 16l4 4"/>
         </svg>
       </span>
       <span class="nav-text">搜索</span>
     </button>
     <button class="nav-btn" data-page="settings">
       <span class="nav-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 4.5v2"/>
+          <path d="M12 17.5v2"/>
+          <path d="M5.5 8.2l1.7 1"/>
+          <path d="M16.8 14.8l1.7 1"/>
+          <path d="M5.5 15.8l1.7-1"/>
+          <path d="M16.8 9.2l1.7-1"/>
+          <circle cx="12" cy="12" r="5.2"/>
+          <circle cx="12" cy="12" r="2"/>
         </svg>
       </span>
       <span class="nav-text">设置</span>

@@ -8,7 +8,7 @@ var _syncedTimestamps = {};
 var _syncTimer = null;
 var _syncRunning = false;
 var _lastSyncTime = null;
-var _syncEnabled = true;
+var _syncEnabled = false;
 var _syncStatus = "idle"; // idle | checking | syncing | error
 var SYNC_INTERVAL = 5000;
 
@@ -34,6 +34,27 @@ async function checkBridge() {
 function getBridgeType() {
   if (isInApp()) return "android";
   return "http";
+}
+
+function getAndroidPermissionStatus() {
+  if (!isInApp()) {
+    return {
+      inApp: false,
+      notificationEnabled: true,
+      accessibilityEnabled: true
+    };
+  }
+
+  var notificationEnabled = false;
+  var accessibilityEnabled = false;
+  try { notificationEnabled = !!AndroidBridge.isNotificationEnabled(); } catch (_) {}
+  try { accessibilityEnabled = !!AndroidBridge.isAccessibilityEnabled(); } catch (_) {}
+
+  return {
+    inApp: true,
+    notificationEnabled: notificationEnabled,
+    accessibilityEnabled: accessibilityEnabled
+  };
 }
 
 // --- 拉取待处理数据 ---
@@ -115,8 +136,15 @@ async function autoSync() {
   _syncStatus = "checking";
 
   try {
+    var permission = getAndroidPermissionStatus();
+    if (permission.inApp && !permission.notificationEnabled) {
+      _syncStatus = "error";
+      _syncRunning = false;
+      return;
+    }
+
     var ok = await checkBridge();
-    if (!ok) { _syncStatus = "idle"; _syncRunning = false; return; }
+    if (!ok) { _syncStatus = "error"; _syncRunning = false; return; }
 
     var pending = await fetchPending();
     if (pending.length === 0) { _syncStatus = "idle"; _syncRunning = false; return; }
@@ -190,13 +218,20 @@ async function autoSync() {
 
 // --- 启停控制 ---
 function startAutoSync() {
+  var permission = getAndroidPermissionStatus();
+  if (permission.inApp && !permission.notificationEnabled) {
+    _syncEnabled = false;
+    _syncStatus = "error";
+    showToast("请先开启通知使用权");
+    return false;
+  }
+
   _syncEnabled = true;
-  if (_syncTimer) return;
-  // 首次延迟3秒后开始
-  setTimeout(function () {
-    autoSync();
-    _syncTimer = setInterval(autoSync, SYNC_INTERVAL);
-  }, 3000);
+  _syncStatus = "idle";
+  if (_syncTimer) return true;
+  autoSync();
+  _syncTimer = setInterval(autoSync, SYNC_INTERVAL);
+  return true;
 }
 
 function stopAutoSync() {
@@ -212,7 +247,7 @@ function toggleAutoSync() {
   if (_syncEnabled) {
     stopAutoSync();
   } else {
-    startAutoSync();
+    return startAutoSync();
   }
   return _syncEnabled;
 }
@@ -232,26 +267,55 @@ function initSyncUI() {
   var toggleBtn = document.getElementById("btn-toggle-sync");
   var dot = document.getElementById("sync-dot");
   var text = document.getElementById("sync-status-text");
+  var nativeActions = document.getElementById("sync-native-actions");
+  var notificationBtn = document.getElementById("btn-open-notification-settings");
+  var accessibilityBtn = document.getElementById("btn-open-accessibility-settings");
+  var simulateBtn = document.getElementById("btn-simulate-notification");
 
   if (!toggleBtn || !dot || !text) return;
 
   function updateUI() {
+    var permission = getAndroidPermissionStatus();
+
+    if (nativeActions) {
+      nativeActions.style.display = permission.inApp ? "flex" : "none";
+    }
+
+    if (notificationBtn && permission.inApp) {
+      notificationBtn.textContent = permission.notificationEnabled ? "通知已开" : "通知权限";
+    }
+    if (accessibilityBtn && permission.inApp) {
+      accessibilityBtn.textContent = permission.accessibilityEnabled ? "无障碍已开" : "无障碍";
+    }
+
     if (_syncEnabled) {
       toggleBtn.textContent = "关闭通知同步";
-      if (_syncStatus === "syncing") {
+      if (permission.inApp && !permission.notificationEnabled) {
+        dot.className = "sync-dot error";
+        text.textContent = "请先开启通知使用权";
+      } else if (_syncStatus === "syncing") {
         dot.className = "sync-dot syncing";
         text.textContent = "同步中...";
       } else if (_syncStatus === "checking") {
         dot.className = "sync-dot syncing";
         text.textContent = "检测桥接...";
+      } else if (_syncStatus === "error") {
+        dot.className = "sync-dot error";
+        text.textContent = permission.inApp ? "同步异常，请检查权限" : "未连接通知服务";
       } else {
         dot.className = "sync-dot online";
-        text.textContent = _lastSyncTime ? "已启动 (上次: " + _lastSyncTime.toLocaleTimeString("zh-CN") + ")" : "已启动，等待通知...";
+        text.textContent = _lastSyncTime ? "已启动 (上次: " + _lastSyncTime.toLocaleTimeString("zh-CN") + ")" :
+          (permission.inApp && !permission.accessibilityEnabled ? "已启动，建议开启无障碍辅助识别" : "已启动，等待通知...");
       }
     } else {
       toggleBtn.textContent = "开启通知同步";
-      dot.className = "sync-dot offline";
-      text.textContent = "未启动";
+      if (_syncStatus === "error" && permission.inApp && !permission.notificationEnabled) {
+        dot.className = "sync-dot error";
+        text.textContent = "请先开启通知使用权";
+      } else {
+        dot.className = "sync-dot offline";
+        text.textContent = "未启动";
+      }
     }
   }
 
@@ -259,6 +323,50 @@ function initSyncUI() {
     toggleAutoSync();
     updateUI();
   });
+
+  if (notificationBtn) {
+    notificationBtn.addEventListener("click", function () {
+      if (isInApp()) {
+        try { AndroidBridge.openNotificationSettings(); } catch (_) {}
+      } else {
+        showToast("浏览器版无法打开手机通知权限");
+      }
+    });
+  }
+
+  if (accessibilityBtn) {
+    accessibilityBtn.addEventListener("click", function () {
+      if (isInApp()) {
+        try { AndroidBridge.openAccessibilitySettings(); } catch (_) {}
+      } else {
+        showToast("浏览器版无法打开手机无障碍设置");
+      }
+    });
+  }
+
+  if (simulateBtn) {
+    simulateBtn.addEventListener("click", function () {
+      if (!isInApp()) {
+        showToast("测试通知仅 Android 版可用");
+        return;
+      }
+
+      try {
+        AndroidBridge.simulateNotification();
+        var wasEnabled = _syncEnabled;
+        _syncEnabled = true;
+        autoSync().then(function () {
+          if (!wasEnabled && !_syncTimer) _syncEnabled = false;
+          updateUI();
+        });
+        showToast("测试通知已生成，正在导入...");
+      } catch (_) {
+        showToast("生成测试通知失败");
+      }
+    });
+  }
+
+  updateUI();
 
   // 定时刷新 UI
   setInterval(updateUI, 3000);

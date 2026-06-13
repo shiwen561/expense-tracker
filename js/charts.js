@@ -1,31 +1,7 @@
-let pieChart = null;
 let trendChart = null;
 
 function initCharts() {
-  const pieCtx = document.getElementById('pieChart').getContext('2d');
   const trendCtx = document.getElementById('trendChart').getContext('2d');
-
-  pieChart = new Chart(pieCtx, {
-    type: 'doughnut',
-    data: {
-      labels: [],
-      datasets: [{
-        data: [],
-        backgroundColor: [],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { padding: 16, usePointStyle: true, pointStyleWidth: 8, font: { size: 12 } }
-        }
-      }
-    }
-  });
 
   trendChart = new Chart(trendCtx, {
     type: 'bar',
@@ -67,17 +43,14 @@ function updateCharts(bills, period) {
   const now = new Date();
   const filtered = bills.filter(b => isInPeriod(b.date, period, now));
 
-  // --- 饼图：支出分类占比 ---
+  // --- 气泡图：支出分类占比 ---
   const expenses = filtered.filter(b => b.type === 'expense');
   const catMap = {};
   expenses.forEach(b => {
     catMap[b.category] = (catMap[b.category] || 0) + b.amount;
   });
   const catEntries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
-  pieChart.data.labels = catEntries.map(e => e[0]);
-  pieChart.data.datasets[0].data = catEntries.map(e => e[1]);
-  pieChart.data.datasets[0].backgroundColor = catEntries.map(e => CAT_COLORS[e[0]] || '#B0BEC5');
-  pieChart.update();
+  updateCategoryBubbles(catEntries);
 
   // --- 趋势图：按时间分组 ---
   const groups = groupBillsByPeriod(filtered, period, now);
@@ -85,6 +58,65 @@ function updateCharts(bills, period) {
   trendChart.data.datasets[0].data = groups.income;
   trendChart.data.datasets[1].data = groups.expense;
   trendChart.update();
+}
+
+function updateCategoryBubbles(catEntries) {
+  const container = document.getElementById('categoryBubbleChart');
+  if (!container) return;
+
+  if (!catEntries.length) {
+    container.innerHTML = '<div class="bubble-empty">暂无支出数据</div>';
+    return;
+  }
+
+  const visible = catEntries.slice(0, 5);
+  const rest = catEntries.slice(5);
+  if (rest.length) {
+    const restTotal = rest.reduce((sum, item) => sum + item[1], 0);
+    const otherIndex = visible.findIndex(([category]) => category === '其他');
+    if (otherIndex >= 0) {
+      visible[otherIndex] = ['其他', visible[otherIndex][1] + restTotal];
+    } else {
+      const smallest = visible.pop();
+      visible.push(['其他', restTotal + (smallest ? smallest[1] : 0)]);
+    }
+  }
+
+  visible.sort((a, b) => b[1] - a[1]);
+
+  const total = visible.reduce((sum, item) => sum + item[1], 0);
+  const max = Math.max(...visible.map(item => item[1]));
+  const palette = ['sky', 'cyan', 'mint', 'violet', 'slate', 'aqua'];
+
+  container.innerHTML = visible.map(([category, amount], index) => {
+    const ratio = max ? amount / max : 0;
+    const percent = total ? Math.round((amount / total) * 100) : 0;
+    const size = Math.round(74 + Math.sqrt(ratio) * 54);
+    const tone = palette[index % palette.length];
+    return `
+      <div class="category-bubble bubble-${tone}" style="--bubble-size:${size}px">
+        <span class="bubble-name">${escapeBubbleText(category)}</span>
+        <strong class="bubble-amount">${formatBubbleAmount(amount)}</strong>
+        <span class="bubble-percent">${percent}%</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function formatBubbleAmount(amount) {
+  if (amount >= 10000) return '¥' + (amount / 10000).toFixed(1) + '万';
+  if (amount >= 1000) return '¥' + Math.round(amount);
+  return '¥' + amount.toFixed(amount >= 100 ? 0 : 2);
+}
+
+function escapeBubbleText(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[ch]);
 }
 
 function isInPeriod(dateStr, period, now) {
